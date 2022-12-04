@@ -14,7 +14,7 @@ DATA_FILE = "day_4.txt"
 @dataclass
 class SectionRange():
     """
-    An range of sections assigned to a single elf
+    A range of sections assigned to a single elf.
     """
     start: int
     end: int
@@ -33,7 +33,7 @@ class SectionRange():
 
     def does_range_overlap(self, other_range: SectionRange) -> bool:
         """
-        Check if this range overlaps with another range.
+        Check if this range overlaps with other_range.
         """
         # Check if either range endpoint appears in the other range.
         return (
