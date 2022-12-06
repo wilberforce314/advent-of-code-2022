@@ -1,5 +1,5 @@
 """
-Day 4 challenge.
+Day 6 challenge.
 """
 
 from typing import Optional
