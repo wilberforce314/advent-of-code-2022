@@ -125,9 +125,9 @@ visible_count = sum(
 print(f"Part 1, number of visible trees: {visible_count}")
 
 # Part 2
-scenic_scores = [
+max_scenic_score = max(
     _get_scenic_score(height_map, row_idx, col_idx)
     for row_idx in range(row_count)
     for col_idx in range(col_count)
-]
-print(f"Part 2, best scenic score: {max(scenic_scores)}")
+)
+print(f"Part 2, best scenic score: {max_scenic_score}")
