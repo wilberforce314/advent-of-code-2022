@@ -1,5 +1,5 @@
 """
-Day 8 challenge.
+Day 9 challenge.
 """
 
 from __future__ import annotations
