@@ -2,20 +2,13 @@
 Day 14 challenge.
 """
 
-from dataclasses import dataclass
 from typing import List, Optional, Set
 
 import utils
+from utils import Point
 
 DATA_FILE = "day_14.txt"
 
-@dataclass(frozen=True)
-class Point():
-    """
-    A single point.
-    """
-    x: int
-    y: int
 
 def _parse_data_file(file_name: str) -> List[List[Point]]:
     """
