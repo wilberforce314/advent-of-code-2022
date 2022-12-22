@@ -1,5 +1,6 @@
 # Advent of code utilities
 
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -7,12 +8,22 @@ __all__ = (
     "BASE_DIR",
     "DATA_DIR",
     "get_data_file",
+    "Point",
     "read_data_file",
 )
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
+
+
+@dataclass(frozen=True)
+class Point():
+    """
+    A single point.
+    """
+    x: int
+    y: int
 
 
 def get_data_file(file_name: str) -> Path:

@@ -113,7 +113,7 @@ def _is_point_not_detected(point: Point, sensors: List[Sensor]) -> bool:
 
 def _parse_data_file(file_name: str) -> List[Sensor]:
     """
-    Parse the data file into a list of rock paths.
+    Parse the data file into a list of sensors
     """
     sensors: List[Sensor] = []
 
