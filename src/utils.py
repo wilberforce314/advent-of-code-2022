@@ -1,5 +1,7 @@
 # Advent of code utilities
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +26,15 @@ class Point():
     """
     x: int
     y: int
+
+    def __add__(self, other_point: Point) -> Point:
+        """
+        Add coordinates pointwise.
+        """
+        out_x = self.x + other_point.x
+        out_y = self.y + other_point.y
+
+        return Point(out_x, out_y)
 
 
 def get_data_file(file_name: str) -> Path:
