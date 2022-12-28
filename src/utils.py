@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
+import time
+from typing import Any, Callable
 
 
 __all__ = (
@@ -12,6 +15,7 @@ __all__ = (
     "get_data_file",
     "Point",
     "read_data_file",
+    "runtime",
 )
 
 
@@ -51,3 +55,24 @@ def read_data_file(file_name: str) -> str:
     data_file_path = get_data_file(file_name)
 
     return data_file_path.read_text()
+
+def runtime(f: Callable) -> Callable:
+    """
+    Decorator used to print the execution time of a function.
+    """
+    @wraps(f)
+    def timer_wrapper(*args: Any, **kwargs: Any) -> Any:
+        """
+        Wrapper which calls the function and prints the execution time.
+        """
+        func_name = f.__name__
+
+        start_time = time.time()
+        retval = f(*args, **kwargs)
+        total_time = time.time() - start_time
+
+        print(f"Execution time of function {func_name}: {total_time}")
+
+        return retval
+
+    return timer_wrapper
