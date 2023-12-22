@@ -1,28 +1,17 @@
 """
-Day 21 challenge.
+Day 23 challenge.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
-from enum import Enum
 from typing import Dict, List, Set
 
 import utils
-from utils import Point
+from utils import Direction, Point
 
 
-DATA_FILE = "day_23.txt"
-
-
-class Direction(Enum):
-    """
-    Enum of directions.
-    """
-    NORTH = "north"
-    SOUTH = "south"
-    WEST = "west"
-    EAST = "east"
+DATA_FILE = "day_23_test.txt"
 
 
 def _parse_data_file(file_name: str) -> Set[Point]:
