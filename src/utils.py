@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import wraps
 from pathlib import Path
 import time
@@ -13,6 +14,7 @@ __all__ = (
     "BASE_DIR",
     "DATA_DIR",
     "get_data_file",
+    "Direction",
     "Point",
     "read_data_file",
     "runtime",
@@ -39,6 +41,16 @@ class Point():
         out_y = self.y + other_point.y
 
         return Point(out_x, out_y)
+
+
+class Direction(Enum):
+    """
+    Enum of directions.
+    """
+    NORTH = "north"
+    SOUTH = "south"
+    WEST = "west"
+    EAST = "east"
 
 
 def get_data_file(file_name: str) -> Path:

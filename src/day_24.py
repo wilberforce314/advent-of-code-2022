@@ -2,38 +2,35 @@
 Day 24 challenge.
 """
 
-from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Dict, List, Union, Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Set, Tuple
 
 import utils
 from utils import Direction, Point
 
 
-DATA_FILE = "day_24_test.txt"
+DATA_FILE = "day_24.txt"
 
 
 @dataclass
 class ValleyCell():
     """
-    Class representing a single point in the valley.
+    Class representing a single point in the initial valley.
 
-    blizzards is a dict mapping direction to bool indicating whether or not a
-    blizzard with that direction is in the cell.
+    blizzard is None if there is no blizzard in the cell. Otherwise, it gives
+    the direction the blizzard is moving in.
     """
     is_wall: bool = False
-    blizzards: Dict[Direction, bool] = field(
-        default_factory=(lambda: defaultdict(bool))
-    )
+    blizzard: Optional[Direction] = None
 
     def __str__(self) -> str:
         """
-        String representation.
+        Fairly pointless stringification. Inverse of parsing.
         """
         if self.is_wall:
             return "#"
 
-        # Not a wall - work out how many blizzards.
+        # Not a wall.
         dir_to_str_map = {
             Direction.EAST : ">",
             Direction.NORTH : "^",
@@ -41,39 +38,14 @@ class ValleyCell():
             Direction.SOUTH : "v"
         }
 
-        included_dirs = [
-            blizzard_dir for blizzard_dir in self.blizzards
-            if self.blizzards[blizzard_dir]
-        ]
-
-        if len(included_dirs) == 0:
+        if self.blizzard is None:
             return "."
-        elif len(included_dirs) >= 2:
-            return str(len(included_dirs))
         else:
-            return dir_to_str_map[included_dirs[0]]
-
-    @property
-    def contains_blizzard(self) -> bool:
-        """
-        Does the cell contain a blizzard.
-        """
-        return any(self.blizzards[dirn] for dirn in Direction)
+            return dir_to_str_map[self.blizzard]
 
 
 # Type for an object representing the entire valley, including walls.
 ValleyType = List[List[ValleyCell]]
-
-# Cache for the state of the valley at each step.
-valley_cache: List[ValleyType] = []
-
-
-# Type of an array representing the safe cells in the valley (including walls,
-# which are deemed not safe).
-SafeCellArrayType = List[List[bool]]
-
-# Cache indicating which cells are safe at each step.
-safe_cell_cache: List[SafeCellArrayType] = []
 
 
 def _parse_data_file_line(line: str) -> List[ValleyCell]:
@@ -90,15 +62,12 @@ def _parse_data_file_line(line: str) -> List[ValleyCell]:
     }
 
     for char in line:
-        blizzards = {dir: False for dir in Direction}
-
         if char == "#":
             cell = ValleyCell(is_wall=True)
         elif char == ".":
-            cell = ValleyCell(blizzards=blizzards)
+            cell = ValleyCell(blizzard=None)
         else:
-            blizzards[blizzard_map[char]] = True
-            cell = ValleyCell(blizzards=blizzards)
+            cell = ValleyCell(blizzard=blizzard_map[char])
 
         row.append(cell)
 
@@ -113,212 +82,239 @@ def _parse_data_file(file_name: str) -> ValleyType:
 
     return [_parse_data_file_line(line) for line in lines]
 
-
-def _print_valley(valley: ValleyType) -> None:
-    """
-    Print a valley.
-    """
-    for row in valley:
-        for cell in row:
-            print(cell, end="")
-        print("")
-
-def _print_safe_cell_matrix(safe_cell_matrix: SafeCellArrayType) -> None:
-    """
-    Print a 'safe cell matrix'.
-    """
-    for row in safe_cell_matrix:
-        for safe_result in row:
-            if safe_result:
-                print("Y", end="")
-            else:
-                print("N", end="")
-        print("")
-
-#
-# Helpers for simulating the blizzards
-#
-
-def _get_wall_equiv(valley: ValleyType, wall_coords: Point) -> Point:
-    """
-    This is a bit obscure, and a bit gross.
-
-    Given the coords of a wall, get the point that a blizzard actually goes to
-    if it would normally have travelled to wall_coords, if it weren't a wall.
-    """
-    num_rows, num_cols = _get_valley_size(valley)
-
-    new_x = wall_coords.x
-    new_y = wall_coords.y
-
-    # Need to wrap the x.
-    if new_x == 0:
-        new_x = num_rows - 2
-    elif new_x == num_rows - 1:
-        new_x = 1
-
-    # Need to wrap the y
-    if new_y == 0:
-        new_y = num_cols - 2
-    elif new_y == num_cols - 1:
-        new_y = 1
-
-    return Point(new_x, new_y)
-
-def _get_surrounding_cells(
-    valley: ValleyType, cell_coords: Point
-) -> Dict[Direction, ValleyCell]:
-    """
-    Given a valley, return a dict of the form:
-       { direction : cell_val }
-
-    Where direction is the direction to get *from the neighbor to cell_coords*,
-    and cell_val is the value.
-
-    The dict returned only includes valley cells, not walls.
-    """
-    num_rows, _ = _get_valley_size(valley)
-
-    # Special case for the entry/exit points, which can never contain any
-    # blizzards - so don't care what the surrounding cells are.
-    if cell_coords.x == 0 or cell_coords.x == num_rows - 1:
-        return {}
-
-    # Slightly funny dictionary:
-    #   Keys: direction from neighbor to cell_coords
-    #   Values: step from cell_coords to neighboring point
-    nbh_steps: Dict[Direction, Point] = {
-        Direction.SOUTH: Point(-1, 0),
-        Direction.NORTH: Point(1, 0),
-        Direction.EAST: Point(0, -1),
-        Direction.WEST: Point(0, 1)
-    }
-
-    out_dict: Dict[Direction, ValleyCell] = {}
-    for dirn, step in nbh_steps.items():
-        nbh_point = cell_coords + step
-        nbh_cell = valley[nbh_point.x][nbh_point.y]
-
-        if nbh_cell.is_wall:
-            # Neighbor is a wall. We need to 'wrap around', pacman style.
-            nbh_point = _get_wall_equiv(valley, nbh_point)
-            nbh_cell = valley[nbh_point.x][nbh_point.y]
-
-        out_dict[dirn] = nbh_cell
-
-    return out_dict
-
 def _get_valley_size(valley: ValleyType) -> Tuple[int, int]:
     """
     Get the size of the valley as (num_rows, num_cols).
     """
     return (len(valley), len(valley[0]))
 
-def _simulate_valley_step_single_cell(
-    curr_valley: ValleyType, coords: Point
-) -> ValleyCell:
+def _get_valley_value(valley: ValleyType, coords: Point) -> ValleyCell:
     """
-    Get the new value of a single cell, given the current value of the cell.
+    Get the value of a point in the valley with coords `coords`.
     """
-    curr_cell = curr_valley[coords.x][coords.y]
+    return valley[coords.x][coords.y]
 
-    if curr_cell.is_wall:
-        # Wall cells do not change
-        return ValleyCell(is_wall=True)
-    else:
-        blizzards_dict = {dirn: False for dirn in Direction}
-
-        nbhs_dict = _get_surrounding_cells(curr_valley, coords)
-
-        for dirn, cell_val in nbhs_dict.items():
-            if cell_val.blizzards[dirn]:
-                blizzards_dict[dirn] = True
-
-        return ValleyCell(blizzards=blizzards_dict)
-
-def _simulate_valley_step(curr_valley: ValleyType) -> ValleyType:
+def _get_start_point(initial_valley: ValleyType) -> Point:
     """
-    Simulate the valley moving forward 1 step in time, given the current state
-    of the valley. Return the new state of the valley.
+    Get the coordinates of the start point.
     """
-    num_rows, num_cols = _get_valley_size(curr_valley)
+    _, num_cols = _get_valley_size(initial_valley)
 
-    return [
-        [
-            _simulate_valley_step_single_cell(curr_valley, Point(row, col))
-            for col in range(num_cols)
-        ]
+    top_row_nonwall_coords = [
+        Point(0, i) for i in range(num_cols)
+        if not _get_valley_value(initial_valley, Point(0, i)).is_wall
+    ]
+
+    assert len(top_row_nonwall_coords) == 1
+    return top_row_nonwall_coords[0]
+
+def _get_end_point(initial_valley: ValleyType) -> Point:
+    """
+    Get the coordinates of the end point.
+    """
+    num_rows, num_cols = _get_valley_size(initial_valley)
+
+    bottom_row_nonwall_coords = [
+        Point(num_rows - 1, i) for i in range(num_cols)
+        if not _get_valley_value(initial_valley, Point(num_rows - 1, i)).is_wall
+    ]
+
+    assert len(bottom_row_nonwall_coords) == 1
+    return bottom_row_nonwall_coords[0]
+
+def _convert_valley_to_blizzard_coords(valley_coords: Point) -> Point:
+    """
+    Convert the coords of a point in the valley to the coords a point in the
+    array in which blizzards operate.
+    """
+    return Point(valley_coords.x - 1, valley_coords.y - 1)
+
+def _convert_blizzard_to_valley_coords(blizzard_coords: Point) -> Point:
+    """
+    Convert the coords a point in the array in which blizzards operate to the
+    coords of a point in the valley.
+    """
+    return Point(blizzard_coords.x + 1, blizzard_coords.y + 1)
+
+def _is_cell_safe(
+    initial_valley: ValleyType, coords: Point, step: int
+) -> bool:
+    """
+    Determine if a given cell is safe at step `step`.
+    """
+    num_rows, num_cols = _get_valley_size(initial_valley)
+
+    # Annoying special case for the start and end points - which are "in the
+    # walls" (and are always safe):
+    start_point = _get_start_point(initial_valley)
+    end_point = _get_end_point(initial_valley)
+    if coords in [start_point, end_point]:
+        return True
+
+    # The walls are never safe.
+    value = _get_valley_value(initial_valley, coords)
+    if value.is_wall:
+        return False
+
+    # Blizzards operate in an array which does not include the walls, and wrap
+    # around 'pacman-style'.
+    #
+    # Points in that coordinate system have 'bc' in the name. Points in the
+    # normal 'valley' coordinate system have 'vc' in the name.
+    num_bc_rows = num_rows - 2
+    num_bc_cols = num_cols - 2
+
+    # Get the cell we are checking is safe in terms of 'blizzard array' coords.
+    start_bc = _convert_valley_to_blizzard_coords(coords)
+
+    # Keys:  Direction blizzard is travelling in
+    # Value: Difference from start loc to coords of blizzard which will hit
+    #        start_bc at the given step.
+    dir_diff_map = {
+        Direction.WEST: Point(0, step),
+        Direction.EAST: Point(0, -step),
+        Direction.SOUTH: Point(-step, 0),
+        Direction.NORTH: Point(step, 0)
+    }
+
+    for dirn, diff in dir_diff_map.items():
+        blz_bc = start_bc + diff
+
+        # 'Normalize' the blizzard coords - i.e. wrap around.
+        blz_bc = Point(blz_bc.x % num_bc_rows, blz_bc.y % num_bc_cols)
+
+        # Convert back to valley coords.
+        blz_vc = _convert_blizzard_to_valley_coords(blz_bc)
+
+        blz_cell = _get_valley_value(initial_valley, blz_vc)
+        assert not blz_cell.is_wall
+
+        if blz_cell.blizzard is dirn:
+            return False
+
+    return True
+
+def _get_safe_cells(initial_valley: ValleyType, step: int) -> Set[Point]:
+    """
+    Get the set of safe cells at step `step`.
+    """
+    num_rows, num_cols = _get_valley_size(initial_valley)
+
+    return {
+        Point(row, col)
         for row in range(num_rows)
-    ]
+        for col in range(num_cols)
+        if _is_cell_safe(initial_valley, Point(row, col), step)
+    }
 
-def _get_valley(step: int) -> ValleyType:
+def _is_point_in_bounds(valley: ValleyType, coords: Point) -> bool:
     """
-    Get the state of the valley at a given step.
+    Check if the point given by `coords` is within the bounds of the valley
+    (including walls).
     """
-    global valley_cache
+    num_rows, num_cols = _get_valley_size(valley)
 
-    try:
-        valley = valley_cache[step]
-    except IndexError:
-        # Not yet in cache. Need to simulate next step and add to the cache.
-        prev_valley = _get_valley(step - 1)
-        valley = _simulate_valley_step(prev_valley)
+    if coords.x < 0 or coords.x >= num_rows:
+        return False
+    if coords.y < 0 or coords.y >= num_cols:
+        return False
 
-        # At this point, the valley cache should be populated up until `step`.
-        assert len(valley_cache) == step
-        valley_cache.append(valley)
+    return True
 
-    return valley
-
-def _calculate_safe_cells_matrix(valley: ValleyType) -> SafeCellArrayType:
+def _get_non_wall_neighbors(valley: ValleyType, coords: Point) -> Set[Point]:
     """
-    Calculate the matrix of safe cells from the current valley.
+    Get the points neighboring point `coords` which are not walls.
     """
-    return [
-        [not cell.contains_blizzard and not cell.is_wall for cell in row]
-        for row in valley
-    ]
+    steps = {Point(0, 1), Point(0, -1), Point(1, 0), Point(-1, 0)}
 
-def _get_safe_cells_matrix(step: int) -> SafeCellArrayType:
+    return {
+        coords + step
+        for step in steps
+        if _is_point_in_bounds(valley, coords + step)
+        and not _get_valley_value(valley, coords + step).is_wall
+    }
+
+def _add_neighboring_points(
+    initial_valley: ValleyType, current_reachable_points: Set[Point]
+) -> Set[Point]:
     """
-    Get the cell safety matrix.
+    Get a set of points, return a new set including the neighbors in the valley
+    which are not walls (i.e. anyway we can move to in a step).
     """
-    global safe_cell_cache
+    # We can 'wait', so the current set of points are still reachable.
+    new_reachable_points: Set[Point] = current_reachable_points.copy()
 
-    try:
-        safe_cell_matrix = safe_cell_cache[step]
-    except IndexError:
-        # Not yet in cache. Presumably the cache should at least be filled up to
-        # (step - 1).
-        assert len(safe_cell_cache) == step
+    # For each point, also add the neighbors.
+    for point in current_reachable_points:
+        new_reachable_points |= _get_non_wall_neighbors(initial_valley, point)
 
-        valley = _get_valley(step)
-        safe_cell_matrix = _calculate_safe_cells_matrix(valley)
-        safe_cell_cache.append(safe_cell_matrix)
+    return new_reachable_points
 
-    return safe_cell_matrix
+def _calculate_journey_steps(
+    initial_valley: ValleyType,
+    start: Point,
+    end: Point,
+    time_passed_at_start: int = 0
+) -> int:
+    """
+    Work out the minimum number of steps to go from start to end.
 
+    If the valley is not in its initial state, `time_passed_at_start` should
+    be set to the number of timesteps since the valley was in its initial state.
+    """
+    journey_steps: int = 0
+    done: bool = False
+
+    # Only the start point is reachable after 0 steps.
+    reachable_cells = {start}
+
+    while not done:
+        journey_steps += 1
+        print(f"Journey step: {journey_steps}")
+        safe_cells = _get_safe_cells(
+            initial_valley, journey_steps + time_passed_at_start
+        )
+
+        tmp_reachable_cells = _add_neighboring_points(
+            initial_valley, reachable_cells
+        )
+        reachable_cells = tmp_reachable_cells & safe_cells
+
+        if end in reachable_cells:
+            done = True
+
+    return journey_steps
 
 #
 # Solution starts here
 #
 # Part 1
 initial_valley = _parse_data_file(DATA_FILE)
-valley_cache.append(initial_valley)
+start_point = _get_start_point(initial_valley)
+end_point = _get_end_point(initial_valley)
 
-for i in range(5):
-    print(f"STEP {i}")
-    valley = _get_valley(i)
-    _print_valley(valley)
-    print("")
-    safe_cell_matrix = _get_safe_cells_matrix(i)
-    _print_safe_cell_matrix(safe_cell_matrix)
-    print("")
+part1_steps = _calculate_journey_steps(
+    initial_valley, start=start_point, end=end_point
+)
+print(f"Part 1: Done in {part1_steps} steps")
 
-print(f"STEP 2")
-valley = _get_valley(2)
-_print_valley(valley)
-print("")
-safe_cell_matrix = _get_safe_cells_matrix(2)
-_print_safe_cell_matrix(safe_cell_matrix)
-print("")
+# Part 2
+part2_steps_back = _calculate_journey_steps(
+    initial_valley,
+    start=end_point,
+    end=start_point,
+    time_passed_at_start=part1_steps
+)
+
+part2_steps_forward = _calculate_journey_steps(
+    initial_valley,
+    start=start_point,
+    end=end_point,
+    time_passed_at_start=part1_steps + part2_steps_back
+)
+
+print("Part2 solutions: ")
+print(f"  Steps there: {part1_steps}")
+print(f"  Steps back: {part2_steps_back}")
+print(f"  Steps there again: {part2_steps_forward}")
+print(f"  Total: {part1_steps + part2_steps_back + part2_steps_forward}")
