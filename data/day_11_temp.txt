@@ -1,0 +1,13 @@
+Monkey 0:
+  Starting items: 54, 98, 50, 94, 69, 62, 53, 85
+  Operation: new = old
+  Test: divisible by 3
+    If true: throw to monkey 2
+    If false: throw to monkey 1
+
+Monkey 1:
+  Starting items: 71, 55, 82
+  Operation: new = old
+  Test: divisible by 13
+    If true: throw to monkey 7
+    If false: throw to monkey 2
